@@ -84,8 +84,8 @@ Uses enhanced `config.py` with type hints, validation, and comprehensive error h
 ### Development Commands
 ```bash
 # Setup virtual environment
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -148,7 +148,7 @@ m2m/
 ├── .env.example               # Configuration template
 ├── .env                       # Local configuration (gitignored)
 ├── .gitignore                 # Git ignore patterns
-├── venv/                      # Virtual environment (gitignored)
+├── .venv/                     # Virtual environment (gitignored)
 ├── config.py                  # Configuration module with validation
 ├── mitsubishi_mqtt_processor.py # Main application
 └── Dockerfile                 # Container build instructions
