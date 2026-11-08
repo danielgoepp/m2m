@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+LABEL Maintainer="danielgoepp"
+LABEL org.opencontainers.image.source="https://github.com/danielgoepp/m2m"
+
 # Set working directory
 WORKDIR /app
 

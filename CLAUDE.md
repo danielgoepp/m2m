@@ -77,7 +77,8 @@ Uses enhanced `config.py` with type hints, validation, and comprehensive error h
 - Non-root user for security
 - No health checks for simplified operation
 - Minimal dependencies
-- Available at: `danielgoepp/m2m-controller:latest`
+- Available at: `ghcr.io/danielgoepp/m2m-controller:latest` (GitHub Container Registry, not Docker Hub)
+- Tagged `:latest` and `:<git-short-sha>` by `build-and-push.sh`
 
 ## Development & Testing
 
@@ -102,7 +103,12 @@ docker build -t m2m-controller .
 
 # Run with Docker
 docker run --env-file .env m2m-controller
+
+# Build on the dev server and push to GHCR (ghcr.io/danielgoepp/m2m-controller)
+./build-and-push.sh
 ```
+
+Images are published to GitHub Container Registry (not Docker Hub), tagged `:latest` and `:<git-short-sha>`. Requires a one-time `docker login ghcr.io -u danielgoepp` with a PAT that has `write:packages`.
 
 ### Dependencies
 - `paho-mqtt>=1.6.0` - MQTT client library
@@ -151,7 +157,8 @@ m2m/
 ├── .venv/                     # Virtual environment (gitignored)
 ├── config.py                  # Configuration module with validation
 ├── mitsubishi_mqtt_processor.py # Main application
-└── Dockerfile                 # Container build instructions
+├── Dockerfile                 # Container build instructions
+└── build-and-push.sh          # Build and push image to GHCR
 ```
 
 ## Security Notes

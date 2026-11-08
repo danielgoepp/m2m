@@ -75,6 +75,12 @@ docker build -t m2m-controller .
 docker run --env-file .env m2m-controller
 ```
 
+Published images live on GitHub Container Registry at `ghcr.io/danielgoepp/m2m-controller` (`:latest` and `:<git-short-sha>`). To build and push:
+```bash
+# one-time: echo "$GHCR_TOKEN" | docker login ghcr.io -u danielgoepp --password-stdin
+./build-and-push.sh
+```
+
 ### Kubernetes
 Deploy using the provided Kubernetes manifest in the `management` namespace.
 
