@@ -50,7 +50,7 @@ Uses enhanced `config.py` with type hints, validation, and comprehensive error h
 - `RECONNECT_DELAY` - Seconds between reconnection attempts (default: `5`)
 
 ### Setup
-1. Copy `.env.example` to `.env`
+1. Create `.env` using the example in README.md (Quick Start → Configure)
 2. Update required credentials and device list in `.env`
 3. Optionally adjust log level and reconnect delay
 4. Run application - config validation occurs at startup with detailed error messages
@@ -91,8 +91,7 @@ source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy and configure environment
-cp .env.example .env
+# Create .env (see example in README.md)
 # Edit .env with actual credentials
 
 # Run the main application locally
@@ -108,7 +107,7 @@ docker run --env-file .env m2m-controller
 ./build-and-push.sh
 ```
 
-Images are published to GitHub Container Registry (not Docker Hub), tagged `:latest` and `:<git-short-sha>`. Requires a one-time `docker login ghcr.io -u danielgoepp` with a PAT that has `write:packages`.
+Images are published to GitHub Container Registry (not Docker Hub), tagged `:latest` and `:<git-short-sha>`. CI (`.github/workflows/docker-image.yml`) builds on every push/PR and pushes to GHCR on pushes to `main` using `GITHUB_TOKEN`. Running `build-and-push.sh` manually requires a one-time `docker login ghcr.io -u danielgoepp` with a PAT that has `write:packages`.
 
 ### Dependencies
 - `paho-mqtt>=1.6.0` - MQTT client library
@@ -151,7 +150,6 @@ m2m/
 ├── README.md                    # Project documentation
 ├── CLAUDE.md                   # AI assistant memory/instructions
 ├── requirements.txt            # Python dependencies
-├── .env.example               # Configuration template
 ├── .env                       # Local configuration (gitignored)
 ├── .gitignore                 # Git ignore patterns
 ├── .venv/                     # Virtual environment (gitignored)

@@ -27,9 +27,22 @@ The M2M Controller listens to MQTT messages for AC control commands and state up
    ```
 
 2. **Configure**
+
+   Create a `.env` file in the project root with your MQTT credentials and device list:
    ```bash
-   cp .env.example .env
-   # Edit .env with your MQTT credentials and device list
+   # MQTT Broker Configuration
+   MQTT_SERVER=mymosquitto.example.com
+   MQTT_PORT=1883
+   MQTT_USERNAME=your_username_here
+   MQTT_PASSWORD=your_password_here
+
+   # Device Configuration
+   # Comma-separated list of Mitsubishi AC device names to monitor
+   DEVICES=BlueroomAir,GreatroomAir,StudioAir,BedroomAir
+
+   # Application Configuration
+   LOG_LEVEL=INFO
+   RECONNECT_DELAY=5
    ```
 
 3. **Run**
