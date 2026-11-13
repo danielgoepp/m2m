@@ -15,13 +15,14 @@ MQTT-based control system for Mitsubishi mini split air conditioners. Monitors a
   - Listens for "set" commands (`mitsubishi2mqtt/+/+/set`)
   - Monitors state updates (`mitsubishi2mqtt/+/state`) 
   - Auto-corrects settings that drift from intended values immediately
-  - Ignores state updates until desired state is set
+  - Adopts the first reported state as the desired state until a set command is seen
+  - Stops correcting an attribute after 5 consecutive failed corrections (until a set with a different value)
 
 ### Controlled Devices
 Configurable via `DEVICES` environment variable (comma-separated, required)
 
 ### Monitored Attributes
-- `temp` - Temperature setting (compared as integers)
+- `temp` - Temperature setting (compared as rounded integers)
 - `fan` - Fan speed setting
 - `vane` - Air direction/vane position
 - `wideVane` - Wide vane position
@@ -39,32 +40,33 @@ Uses enhanced `config.py` with type hints, validation, and comprehensive error h
 
 ### Environment Variables
 **Required:**
+- `MQTT_SERVER` - MQTT broker address
+- `MQTT_PORT` - MQTT broker port (e.g. `1883`)
 - `MQTT_USERNAME` - MQTT authentication username
 - `MQTT_PASSWORD` - MQTT authentication password
 - `DEVICES` - Comma-separated device list (e.g., `BlueroomAir,GreatroomAir`)
 
 **Optional (with defaults):**
-- `MQTT_SERVER` - MQTT broker address (default: `mosquitto-prod.goepp.net.`)
-- `MQTT_PORT` - MQTT broker port (default: `1883`)
-- `LOG_LEVEL` - Logging level (default: `INFO`, options: DEBUG/INFO/WARNING/ERROR/CRITICAL)
+- `LOG_LEVEL` - Logging level (default: `INFO`, options: DEBUG/INFO/WARNING/ERROR/CRITICAL; invalid values fail startup)
 - `RECONNECT_DELAY` - Seconds between reconnection attempts (default: `5`)
 
 ### Setup
-1. Create `.env` using the example in README.md (Quick Start → Configure)
+1. Copy `.env.example` to `.env`
 2. Update required credentials and device list in `.env`
 3. Optionally adjust log level and reconnect delay
 4. Run application - config validation occurs at startup with detailed error messages
 
 ### Configuration Features
 - **Type Safety**: Full type hints throughout config module
-- **Validation**: Comprehensive validation with helpful error messages
+- **Validation**: Required vars, integer parsing, port range, log level and non-empty device list checked at startup
 - **Logging**: Configuration summary logged at startup (secrets excluded)
 - **Auto-reconnect**: Configurable reconnection delay for MQTT failures
 - **Code Quality**: Consistent formatting with black/ruff style guidelines
 
 ## Deployment Options
 
-### 1. Kubernetes (m2m-controller-deployment-prod.yaml)
+### 1. Kubernetes
+- Manifest is not in this repo (managed in the cluster's GitOps config)
 - Containerized deployment in `management` namespace
 - Uses ConfigMap for non-sensitive config (MQTT_SERVER, MQTT_PORT, DEVICES)
 - Uses Secret for credentials (MQTT_USERNAME, MQTT_PASSWORD)
@@ -91,7 +93,8 @@ source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Create .env (see example in README.md)
+# Create .env from the example
+cp .env.example .env
 # Edit .env with actual credentials
 
 # Run the main application locally
@@ -110,7 +113,7 @@ docker run --env-file .env m2m-controller
 Images are published to GitHub Container Registry (not Docker Hub), tagged `:latest` and `:<git-short-sha>`. CI (`.github/workflows/docker-image.yml`) builds on every push/PR and pushes to GHCR on pushes to `main` using `GITHUB_TOKEN`. Running `build-and-push.sh` manually requires a one-time `docker login ghcr.io -u danielgoepp` with a PAT that has `write:packages`.
 
 ### Dependencies
-- `paho-mqtt>=1.6.0` - MQTT client library
+- `paho-mqtt>=2.0` - MQTT client library (uses `CallbackAPIVersion.VERSION2`)
 
 ## Architecture Overview
 
@@ -120,9 +123,9 @@ Images are published to GitHub Container Registry (not Docker Hub), tagged `:lat
 - **Configuration-driven**: Environment variables control MQTT connection and device list
 
 ### Key Components
-- `mitsubishi_mqtt_processor.py:15` - Main `MitsubishiMQTTProcessor` class
+- `mitsubishi_mqtt_processor.py` - `MONITORED_ATTRIBUTES` (set-topic name → state JSON key), `MAX_CONSECUTIVE_CORRECTIONS`, and the main `MitsubishiMQTTProcessor` class
 - `config.py` - Environment variable loading with validation and `.env` file support
-- State tracking in `device_states` dictionary - initialized to `None` for all attributes
+- State tracking in `device_states` (initialized to `None`) and `correction_counts` dictionaries
 
 ### Message Flow
 1. **Set commands** (`mitsubishi2mqtt/{device}/attribute/set`) → Update desired state
@@ -132,11 +135,13 @@ Images are published to GitHub Container Registry (not Docker Hub), tagged `:lat
 ## Key Behaviors
 1. **Initial State Learning**: Records current states when no desired state exists
 2. **Immediate Correction**: Auto-corrects mismatches without delay
-3. **Integer Temperature Comparison**: Treats 72.0 and 72 as equal
+3. **Integer Temperature Comparison**: Rounds before comparing (72.0, 71.6 and 72 are equal)
 4. **Non-Retained Messages**: Corrections published without retain flag
 5. **State Tracking**: Maintains desired vs actual states per device/attribute
-6. **Robust Error Handling**: Automatic reconnection with configurable delays
-7. **Configuration Logging**: Startup summary excludes sensitive credentials
+6. **Correction Limit**: Gives up after 5 consecutive failed corrections per attribute; resets on a set with a different value or a matching state
+7. **Robust Error Handling**: Automatic reconnection with configurable delays
+8. **Configuration Logging**: Startup summary excludes sensitive credentials
+9. **Graceful Shutdown**: SIGTERM/SIGINT stop the loop and send an MQTT DISCONNECT, so pod stops exit immediately and cleanly
 
 ## Deployment Status
 - **Currently deployed** to k3s cluster in `management` namespace
@@ -147,16 +152,19 @@ Images are published to GitHub Container Registry (not Docker Hub), tagged `:lat
 ## Project Structure
 ```
 m2m/
-├── README.md                    # Project documentation
-├── CLAUDE.md                   # AI assistant memory/instructions
-├── requirements.txt            # Python dependencies
-├── .env                       # Local configuration (gitignored)
-├── .gitignore                 # Git ignore patterns
-├── .venv/                     # Virtual environment (gitignored)
-├── config.py                  # Configuration module with validation
-├── mitsubishi_mqtt_processor.py # Main application
-├── Dockerfile                 # Container build instructions
-└── build-and-push.sh          # Build and push image to GHCR
+├── .github/workflows/
+│   └── docker-image.yml          # CI: build on push/PR, push to GHCR on main
+├── README.md                     # Project documentation
+├── CLAUDE.md                     # AI assistant memory/instructions
+├── requirements.txt              # Python dependencies
+├── .env.example                  # Example configuration
+├── .env                          # Local configuration (gitignored)
+├── .gitignore                    # Git ignore patterns
+├── .venv/                        # Virtual environment (gitignored)
+├── config.py                     # Configuration module with validation
+├── mitsubishi_mqtt_processor.py  # Main application
+├── Dockerfile                    # Container build instructions
+└── build-and-push.sh             # Build and push image to GHCR
 ```
 
 ## Security Notes

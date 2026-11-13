@@ -21,28 +21,16 @@ The M2M Controller listens to MQTT messages for AC control commands and state up
    ```bash
    git clone <repository-url>
    cd m2m
-   python3 -m venv venv
-   source venv/bin/activate
+   python3 -m venv .venv
+   source .venv/bin/activate
    pip install -r requirements.txt
    ```
 
 2. **Configure**
 
-   Create a `.env` file in the project root with your MQTT credentials and device list:
+   Copy the example config and edit it with your MQTT credentials and device list:
    ```bash
-   # MQTT Broker Configuration
-   MQTT_SERVER=mymosquitto.example.com
-   MQTT_PORT=1883
-   MQTT_USERNAME=your_username_here
-   MQTT_PASSWORD=your_password_here
-
-   # Device Configuration
-   # Comma-separated list of Mitsubishi AC device names to monitor
-   DEVICES=BlueroomAir,GreatroomAir,StudioAir,BedroomAir
-
-   # Application Configuration
-   LOG_LEVEL=INFO
-   RECONNECT_DELAY=5
+   cp .env.example .env
    ```
 
 3. **Run**
@@ -53,25 +41,32 @@ The M2M Controller listens to MQTT messages for AC control commands and state up
 ## Configuration
 
 ### Required Environment Variables
+- `MQTT_SERVER` - MQTT broker address
+- `MQTT_PORT` - MQTT broker port (e.g. `1883`)
 - `MQTT_USERNAME` - MQTT broker authentication username
 - `MQTT_PASSWORD` - MQTT broker authentication password
 - `DEVICES` - Comma-separated list of AC device names
 
 ### Optional Environment Variables
-- `MQTT_SERVER` - MQTT broker address (default: `mosquitto-prod.goepp.net.`)
-- `MQTT_PORT` - MQTT broker port (default: `1883`)
-- `LOG_LEVEL` - Logging level (default: `INFO`)
+- `LOG_LEVEL` - Logging level (default: `INFO`; one of DEBUG/INFO/WARNING/ERROR/CRITICAL)
 - `RECONNECT_DELAY` - Reconnection delay in seconds (default: `5`)
 
 ## Monitored Attributes
 
-- `temp` - Temperature setting (compared as integers)
+- `temp` - Temperature setting (compared as rounded integers)
 - `fan` - Fan speed setting
 - `vane` - Air direction/vane position
 - `wideVane` - Wide vane position
 - `mode` - Operating mode (heat/cool/etc.)
 
 *Note: `remote_temp` (room sensor data) is ignored*
+
+## Behavior
+
+- A `/set` command on a monitored attribute becomes that attribute's desired value.
+- Before any `/set` is seen, the first reported state is adopted as the desired value.
+- When a state update differs from the desired value, a correction is republished to the `/set` topic (non-retained).
+- After 5 consecutive corrections that don't take effect, the controller stops correcting that attribute and logs an error until a `/set` with a different value arrives (protects against values the unit rejects; the controller's own corrections echo back on `/set` and are ignored).
 
 ## MQTT Topics
 
@@ -95,12 +90,12 @@ Published images live on GitHub Container Registry at `ghcr.io/danielgoepp/m2m-c
 ```
 
 ### Kubernetes
-Deploy using the provided Kubernetes manifest in the `management` namespace.
+Runs in the `management` namespace of the k3s cluster. The manifest is not in this repo; it is managed in the cluster's GitOps config. MQTT server, port and devices come from a ConfigMap; credentials from a Secret.
 
 ## Dependencies
 
 - Python 3.11+
-- paho-mqtt >= 1.6.0
+- paho-mqtt >= 2.0
 
 ## License
 
